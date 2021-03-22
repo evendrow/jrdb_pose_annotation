@@ -50,6 +50,7 @@ from __future__ import print_function
 
 import argparse
 import json
+import os
 
 from pymongo.errors import BulkWriteError
 
@@ -77,7 +78,7 @@ def ensure_dataset_indices(db):
   db.annotation.create_index("image_id")
   db.license.create_index("id", unique=True)
 
-def load_dataset(db, dataset, normalize=False):
+def load_dataset(db, dataset, normalize=False, url_with_prefix=None):
   """ Load a COCO style dataset.
   Args:
     db: A mongodb database handle.
@@ -127,8 +128,12 @@ def load_dataset(db, dataset, normalize=False):
       image['id'] = str(image['id'])
       image['license'] = str(image['license']) if 'license' in image else ''
 
+      # If loading JRDB dataset (with set prefix), use file_name as url
+      if 'url' not in image and url_with_prefix is not None:
+        image['url'] = url_with_prefix + image['file_name']
+
       # If loading the actual COCO dataset, then remap `coco_url` to `url`
-      if 'url' not in image and 'coco_url' in image:
+      elif 'url' not in image and 'coco_url' in image:
         image['url'] = image['coco_url']
 
       # Add a blank rights holder if it is not present
@@ -167,9 +172,16 @@ def load_dataset(db, dataset, normalize=False):
         x, y, w, h = anno['bbox']
         anno['bbox'] = [x / image_width, y / image_height, w / image_width, h / image_height]
         if 'keypoints' in anno:
-          for pidx in range(0, len(anno['keypoints']), 3):
-            x, y = anno['keypoints'][pidx:pidx+2]
-            anno['keypoints'][pidx:pidx+2] = [x / image_width, y / image_height]
+
+          # for pidx in range(0, len(anno['keypoints']), 3):
+          #   x, y = anno['keypoints'][pidx:pidx+2]
+          #   anno['keypoints'][pidx:pidx+2] = [x / image_width, y / image_height]
+            
+          new_keypoints = []
+          for pidx in range(0, len(anno['keypoints'])):
+            x, y, v = anno['keypoints'][pidx]
+            new_keypoints += [x / image_width, y / image_height, v]
+          anno['keypoints'] = new_keypoints
 
     try:
       response = db.annotation.insert_many(annotations, ordered=False)
@@ -183,23 +195,23 @@ def load_dataset(db, dataset, normalize=False):
 
 
   # Insert the licenses
-  assert 'licenses' in dataset, "Failed to find `licenses` in dataset object."
-  licenses = dataset['licenses']
-  print("Inserting %d licenses" % (len(licenses),))
-  if len(licenses) > 0:
+  # assert 'licenses' in dataset, "Failed to find `licenses` in dataset object."
+  # licenses = dataset['licenses']
+  # print("Inserting %d licenses" % (len(licenses),))
+  # if len(licenses) > 0:
 
-    # Ensure the license ids are strings
-    for lic in licenses:
-      lic['id'] = str(lic['id'])
+  #   # Ensure the license ids are strings
+  #   for lic in licenses:
+  #     lic['id'] = str(lic['id'])
 
-    try:
-      response = db.license.insert_many(licenses, ordered=False)
-      print("Successfully inserted %d licenses" % (len(response.inserted_ids),))
-    except BulkWriteError as bwe:
-      panic = filter(lambda x: x['code'] != DUPLICATE_KEY_ERROR_CODE, bwe.details['writeErrors'])
-      if len(panic) > 0:
-        raise
-      print("Attempted to insert duplicate licenses, %d new licenses inserted" % (bwe.details['nInserted'],))
+  #   try:
+  #     response = db.license.insert_many(licenses, ordered=False)
+  #     print("Successfully inserted %d licenses" % (len(response.inserted_ids),))
+  #   except BulkWriteError as bwe:
+  #     panic = filter(lambda x: x['code'] != DUPLICATE_KEY_ERROR_CODE, bwe.details['writeErrors'])
+  #     if len(panic) > 0:
+  #       raise
+  #     print("Attempted to insert duplicate licenses, %d new licenses inserted" % (bwe.details['nInserted'],))
 
 
 def export_dataset(db, denormalize=False):
@@ -244,7 +256,7 @@ def parse_args():
 
   parser = argparse.ArgumentParser(description='Dataset loading and exporting utilities.')
 
-  parser.add_argument('-a', '--action', choices=['drop', 'load', 'export'], dest='action',
+  parser.add_argument('-a', '--action', choices=['drop', 'load', 'export', 'load_jrdb'], dest='action',
                       help='The action you would like to perform.', required=True)
 
   parser.add_argument('-d', '--dataset', dest='dataset_path',
@@ -283,6 +295,24 @@ def main():
     dataset = export_dataset(db, denormalize=args.denormalize)
     with open(args.output_path, 'w') as f:
       json.dump(dataset, f)
+
+  elif action == "load_jrdb":
+    if not os.path.isdir(args.dataset_path):
+      print("JRDB load path should be a folder (with subfolders for each scene)")
+    else:
+      d = args.dataset_path
+      scenes = [scene for scene in os.listdir(args.dataset_path)
+                      if os.path.isdir(os.path.join(d, scene))]
+      # for scene in scenes:
+      for i in range(1):
+        scene = "bytes-cafe-2019-02-07_0"
+        ann_file = os.path.join(d, scene, "annotations_mmpose.json")
+        url_prefix = "/images/"+scene+"/"
+        with open(ann_file) as f:
+          dataset = json.load(f)
+        ensure_dataset_indices(db)
+        load_dataset(db, dataset, normalize=args.normalize, url_with_prefix=url_prefix)
+
 
 if __name__ == '__main__':
 

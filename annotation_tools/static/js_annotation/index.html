@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<!--
+Created using JS Bin
+http://jsbin.com
+
+Copyright (c) 2021 by anonymous (http://jsbin.com/pemohapugo/1/edit)
+
+Released under the MIT license: http://jsbin.mit-license.org
+-->
+<meta name="robots" content="noindex">
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <script src="https://code.jquery.com/jquery.min.js"></script>
+  <!-- <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet" type="text/css" /> -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <!-- <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script> -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+  <!-- <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script> -->
+  
+  <!-- <link href="https://netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.min.css" rel="stylesheet" type="text/css" /> -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css" rel="stylesheet" type="text/css" />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+  <script src="Smooth-0.1.7.js"></script>
+  <script src="kalman.min.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+  <!-- <script src="canvas.js"></script> -->
+  <script src="annotator.js"></script>
+  <script src="jrdb.js"></script>
+
+  <title>JRDB Annotation</title>
+
+</head>
+<body>
+  <div id="center">
+    <div id="container">
+      <h2>Body Keypoint Annotation</h2>
+      <!-- <canvas id="canvas" width=800 height=600></canvas> -->
+      <div class="row" id="annotationcontainer">
+        <div id="mapcontainer">
+          <div id="map" style="width: 100%; height: 600px;"></div>
+        </div>
+        <div id="annotations">
+          <div id="person_info">
+            <div class="row person_row">
+              <div class="name"><p><span id="person_id">Loading...</span></p></div>
+              <div class="button">
+                <!-- <button class="btn btn-sm btn-secondary">Focus</button> -->
+                <div class="btn-group btn-group-sm" role="group">
+                  <button type="button" class="btn btn-outline-secondary" onclick="prev_person()">&larr; Previous</button>
+                  <button type="button" class="btn btn-outline-secondary" onclick="next_person()">&rarr; Next</button>
+                </div>
+              </div>
+            </div>
+            <div class="row person_row">
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="focusOnAnnotation()">
+                <i class="fas fa-expand"></i> 
+                Zoom Person
+              </button> &nbsp; &nbsp;
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showAll()">
+                <i class="fas fa-child"></i>
+                Show All Points
+              </button>
+            </div>
+          </div>
+          <div id="keypoint_info">
+            <div id="selected_keypoint_row" class="row flex_row">
+              <div class="name">
+                Selected:
+              </div>
+              <div id="selected_keypoint">
+                <div class="keypoint_color" id="selected_keypoint_color"></div>
+                <b id="selected_keypoint_name">right_shoulder</b>
+              </div>
+            </div>
+            <div class="row keypoint_label_row">
+
+              <p class="btn_label">Difficulty:</p>
+              <div class="btn-group btn-group-toggle btn-group-sm" data-toggle="buttons">
+                <label class="btn btn-outline-secondary active">
+                  <input type="radio" name="options" id="option1" autocomplete="off" checked> Easy
+                </label>
+                <label class="btn btn-outline-secondary">
+                  <input type="radio" name="options" id="option2" autocomplete="off"> Medium
+                </label>
+                <label class="btn btn-outline-secondary">
+                  <input type="radio" name="options" id="option3" autocomplete="off"> Hard
+                </label>
+              </div> 
+
+            </div>
+            <div class="row keypoint_label_row">
+
+              <p class="btn_label">Visibility:</p>
+              <div class="btn-group btn-group-toggle btn-group-sm" data-toggle="buttons">
+                <label class="btn btn-outline-secondary active">
+                  <input type="radio" name="options" id="option1" autocomplete="off" checked> Visible
+                </label>
+                <label class="btn btn-outline-secondary">
+                  <input type="radio" name="options" id="option2" autocomplete="off"> Occluded
+                </label>
+                <label class="btn btn-outline-secondary">
+                  <input type="radio" name="options" id="option3" autocomplete="off"> N/A
+                </label>
+              </div>
+
+            </div>
+            <div class="row center_row">
+              
+              <!-- <div class="name">Interpolation:</div> &nbsp;&nbsp;&nbsp;&nbsp; -->
+              
+              <button onclick="interpolate()" id="interpolate_button" class="btn btn-primary btn-sm">
+                Start Interpolation
+                <!-- <span class="fa fa-arrow-right fa-md" aria-hidden="true"></span> -->
+              </button>
+              <!-- <button onclick="kalman()" id="kalman_button" class="btn btn-outline-secondary btn-sm"> -->
+                <!-- Kalman Filter -->
+              <!-- </button> -->
+              &nbsp; &nbsp;
+              <button onclick="do_interpolate()" id="do_interpolate_button" class="btn btn-success btn-sm" style="display: none;">
+                Interpolate
+                <!-- <span class="fa fa-arrow-right fa-md" aria-hidden="true"></span> -->
+              </button>
+
+            </div>
+          </div>
+          <div id="keypoint_list">
+          </div>
+        </div>
+      </div>
+      
+      <div id="buttons">
+
+        <p id="frameInfo">Frame: <span id="frameNum">0</span></p>
+
+        <div class="btn-group btn-group-lg" role="group">
+          <button onclick="prev_image(50)" class="btn btn-outline-secondary smaller_btn">
+            <i class="fas fa-angle-left"></i> 
+            50
+            <!-- <span class="fa fa-arrow-right fa-md" aria-hidden="true"></span> -->
+          </button>
+          <button onclick="prev_image(5)" class="btn btn-outline-secondary smaller_btn">
+            <i class="fas fa-angle-left"></i>
+            5
+            <!-- <span class="fa fa-arrow-right fa-md" aria-hidden="true"></span> -->
+          </button>
+        <!-- </div> -->
+        <!-- <div class="btn-group btn-group-lg" role="group"> -->
+          <button onclick="prev_image()" class="btn btn-outline-secondary">
+            <!-- <span class="fa fa-arrow-left fa-md" aria-hidden="true"></span> -->
+            <i class="fas fa-angle-left"></i>
+            <b>Previous</b>
+          </button>
+          <button onclick="next_image()" class="btn btn-outline-secondary">
+            <b>Next</b>
+
+            <i class="fas fa-angle-right"></i>
+            <!-- <span class="fa fa-arrow-right fa-md" aria-hidden="true"></span> -->
+          </button>
+        <!-- </div> -->
+        <!-- <div class="btn-group btn-group-md" role="group"> -->
+          <button onclick="next_image(5)" class="btn btn-outline-secondary smaller_btn">
+            5
+
+            <i class="fas fa-angle-right"></i>
+            <!-- <span class="fa fa-arrow-right fa-md" aria-hidden="true"></span> -->
+          </button>
+          <button onclick="next_image(50)" class="btn btn-outline-secondary smaller_btn">
+            50
+
+            <i class="fas fa-angle-right"></i>
+            <!-- <span class="fa fa-arrow-right fa-md" aria-hidden="true"></span> -->
+          </button>
+
+          
+        </div>
+
+        &nbsp;&nbsp;&nbsp;&nbsp;
+
+        <div class="btn-group btn-group-lg" role="group">
+          <button onclick="play()" id="playButton" class="btn btn-outline-secondary">
+            <span class="fas fa-play" aria-hidden="true"></span> 
+            Play
+            <!-- <span class="fa fa-arrow-right fa-md" aria-hidden="true"></span> -->
+          </button>
+
+          <button onclick="rewind()" class="btn btn-outline-secondary">
+            <span class="fas fa-backward" aria-hidden="true"></span> 
+            Rewind
+            <!-- <span class="fa fa-arrow-right fa-md" aria-hidden="true"></span> -->
+          </button>
+        </div>
+
+        &nbsp;&nbsp;&nbsp;&nbsp;
+
+        <button onclick="save()" class="btn btn-secondary btn-lg">
+            <span class="far fa-save" aria-hidden="true"></span>&nbsp;Save
+            <!-- <span class="fa fa-arrow-right fa-md" aria-hidden="true"></span> -->
+          </button>
+      </div>
+    </div>
+  </div>
+
+   
+<script id="jsbin-javascript">
+
+var jrdb;
+
+
+window.onload=function(){
+
+/*  
+  // get canvas related references
+  canvas=document.getElementById("canvas");
+  ctx=canvas.getContext("2d");
+  var BB=canvas.getBoundingClientRect();
+  offsetX=BB.left;
+  offsetY=BB.top;
+  WIDTH = canvas.width;
+  HEIGHT = canvas.height;
+  // listen for mouse events
+  canvas.onmousedown = mouseDown;
+  canvas.onmouseup = mouseUp;
+  canvas.onmousemove = mouseMove;
+
+  // call to draw the scene
+  redraw();*/
+
+
+  jrdb = new JRDBAnnotator("map");
+
+  // getNewAnnotations(currentImageId);
+}; // end $(function(){});
+
+var focusOnAnnotation = function() {
+  console.log("focus");
+  jrdb.focusOnAnnotation();
+};
+
+var next_image = function(delta=1) {
+  jrdb.next_image(delta);
+};
+
+var prev_image = function(delta=1) {
+  jrdb.prev_image(delta);
+};
+
+var next_person = function() {
+  jrdb.next_person();
+};
+var prev_person = function() {
+  jrdb.prev_person();
+}
+
+var updatePlayButton = function(playing) {
+  if (!playing) {
+    $("#playButton").html(`
+      <span class="fas fa-play" aria-hidden="true"></span> Play
+    `)
+  } else {
+    $("#playButton").html(`
+      <span class="fas fa-pause" aria-hidden="true"></span> Pause
+    `)
+  }
+}
+
+var play = function() {
+  jrdb.togglePlaying(function() {
+    updatePlayButton(false);
+  });
+  updatePlayButton(jrdb.playing);
+};
+
+var rewind = function() {
+  jrdb.rewind();
+};
+
+var focus = function() {
+  jrdb.focusOnAnnotation();
+};
+
+var showAll = function() {
+  jrdb.setKeypointIdx(-1);
+}
+
+var interpolating = false;
+var interpolate = function() {
+  if (interpolating) { 
+    // End Interpolation
+    $('#interpolate_button').html('Start Interpolation');
+    $('#interpolate_button').addClass('btn-primary');
+    $('#interpolate_button').removeClass('btn-danger');
+    $('#do_interpolate_button').hide();
+    jrdb.fillHTMLKeypointsList();
+
+  } else { 
+    // Start interpolation
+    $('#interpolate_button').html('Stop Interpolation');
+    $('#interpolate_button').addClass('btn-danger');
+    $('#interpolate_button').removeClass('btn-primary');
+    $('#do_interpolate_button').show();
+    $('#keypoint_list').html('');
+
+    jrdb.beginInterpolation();
+
+  }
+
+  interpolating = !interpolating;
+}
+
+var do_interpolate = function() {
+  console.log("Perfoming interpolation...");
+  jrdb.performInterpolation();
+  interpolate();
+};
+
+var save = function() {
+  jrdb.performSave(function() {
+    // success
+    alert('Saved.');
+  }, function() {
+    alert('Save Error!')
+  });
+}
+
+document.addEventListener('keydown', function (event) {
+  if (event.key === 'ArrowLeft') { //left arrow
+    jrdb.prev_image();
+  }
+  if (event.key === 'ArrowRight') { //right arrow
+    jrdb.next_image();
+  }
+
+  if (event.key == 'a') {
+    jrdb.prev_image(5);
+  }
+  if (event.key == 'd') {
+    jrdb.next_image(5);
+  }
+
+  if (event.key == 'q') {
+    jrdb.prev_image(50);
+  }
+  if (event.key == 'e') {
+    jrdb.next_image(50);
+  }
+
+  if (event.key == 'i') {
+    jrdb.leafletModifedCallback(jrdb.interpIdx);
+  }
+  if (event.key == 'z') {
+    focusOnAnnotation();
+  }
+
+  if (event.key == ',') {
+    play();
+  }
+  if (event.key == '.') {
+    rewind();
+  }
+
+});
+</script>
+</body>
+</html>

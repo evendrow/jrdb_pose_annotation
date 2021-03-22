@@ -127,9 +127,9 @@ export class EditSequence extends React.Component {
           alert("Failed to save image data");
         });
 
-        this.setState({
-          fetchingData : true
-        });
+        // this.setState({
+        //   fetchingData : true
+        // });
       }
 
     }
@@ -153,6 +153,7 @@ export class EditSequence extends React.Component {
 
           // Get the data for the next image.
           this.getImageData(nextImageId, (imageData)=>{
+            console.log("GOT IMAGE DATA");
 
             // Render the next image
             this.setState(function(prevState, props){
@@ -170,9 +171,9 @@ export class EditSequence extends React.Component {
           alert("Failed to save image data");
         });
 
-        this.setState({
-          fetchingData : true
-        });
+        // this.setState({
+          // fetchingData : true
+        // });
       }
 
     }

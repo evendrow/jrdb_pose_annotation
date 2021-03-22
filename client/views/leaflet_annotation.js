@@ -187,6 +187,21 @@ export class LeafletAnnotation extends React.Component {
 
       this.enableHotKeys();
 
+      // Focus on person
+
+      var correctId = -1;
+      for (var i = 0; i < this.state.annotations.length; i++) {
+        console.log("id for " + i + " is " + this.state.annotations[i]["id"]);
+        if (this.state.annotations[i]["id"] == 2) {
+          correctId == i;
+        }
+      }
+      if (correctId != 1) {
+        this.handleAnnotationFocus(0);  
+        this.hideOtherAnnotations(0);
+      }
+      
+
     }
 
     componentWillUnmount(){
@@ -1190,6 +1205,8 @@ export class LeafletAnnotation extends React.Component {
      */
     handleAnnotationFocus(annotationIndex){
 
+      console.log("Focusing on annotation index " + annotationIndex);
+
 
       let annotation = this.state.annotations[annotationIndex];
       let annotation_layer = this.annotation_layers[annotationIndex];
@@ -1200,7 +1217,7 @@ export class LeafletAnnotation extends React.Component {
       if(annotation_layer['bbox'] != 'undefined' && annotation_layer['bbox'] != null){
         let layer = annotation_layer['bbox'];
         let bounds = layer.getBounds();
-        this.leafletMap.fitBounds(bounds);
+        this.leafletMap.fitBounds(bounds, {animate:false});
       }
 
     }

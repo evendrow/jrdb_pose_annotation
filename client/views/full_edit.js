@@ -85,7 +85,8 @@ export class FullEditView extends React.Component {
                             annotations={this.props.annotations}
                             categories={this.props.categories}
                             enableEditing={true}
-                            onSave={this.performSave}/>
+                            onSave={this.performSave}
+                            focusId={1}/>
             </div>
           </div>
         </div>
